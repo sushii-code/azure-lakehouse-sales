@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data (never commit raw or generated data)
+data/raw/*
+data/simulated/*
+!data/raw/.gitkeep
+!data/simulated/.gitkeep
+*.csv
+*.parquet
+
+# Secrets and local config
+.env
+*.tfvars
+!example.tfvars
+profiles.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# OS / editor
+.DS_Store
+.vscode/
