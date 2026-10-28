@@ -22,7 +22,7 @@
 - Built: explore_keys.py (primary key check, repeat customers) and explore_joins.py (orphan check, fan-out check). Made scripts find data from their own location using pathlib, so they run from any folder.
 - Learned: primary and foreign keys; GROUP BY with COUNT; HAVING filters groups (WHERE filters rows); subqueries; INNER vs LEFT JOIN; anti join (LEFT JOIN + IS NULL) finds orphans; fan-out (joining to a many-rows table duplicates rows and inflates sums).
 - Why: joins can silently lose rows (orphans) or duplicate rows (fan-out); checking both before building gold keeps the numbers right.
-- Found: order_id is a valid primary key; 2,997 repeat customers; fan-out inflated revenue by [difference] when joining payments.
+- Found: order_id is a valid primary key; 2,997 repeat customers; fan-out inflated revenue by 617,471.64 (about 4.5%) when joining payments.
 
 ## Day 5 
 - Built: Unity Catalog schemas (bronze, silver, gold) and a landing volume; PySpark notebook loading 9 CSVs into bronze Delta tables with _ingested_at and _source_file; reconciliation check (all 9 tables OK).

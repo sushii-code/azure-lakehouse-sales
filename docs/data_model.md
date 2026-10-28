@@ -68,8 +68,8 @@ Will cover: which columns are dropped, which are tokenised, where the token mapp
 | --- | --- | --- |
 | order_id uniqueness | 99,441 rows, 99,441 distinct, 0 empty | order_id is a valid primary key for orders |
 | Repeat customers | 2,997 people ordered more than once | About 3% of customers returned; customer counts must use customer_unique_id |
-| Orphan order items | [your Check 1 number] | Items whose order_id has no matching order would be silently dropped by an INNER JOIN |
-| Fan-out: items joined to payments | True revenue [true_revenue]; after join [revenue_after_join]; inflated by [difference] | Orders with several payment rows duplicate their items. Rule for gold: never sum item prices after joining payments; aggregate payments to one row per order first, then join |
+| Orphan order items | 0 | Items whose order_id has no matching order would be silently dropped by an INNER JOIN |
+| Fan-out: items joined to payments | True revenue 13,591,643.70; after join 14,209,115.34; inflated by 617,471.64 (about 4.5%) | Orders with several payment rows duplicate their items. Rule for gold: never sum item prices after joining payments; aggregate payments to one row per order first, then join |
 
 ## Bronze layer 
 
