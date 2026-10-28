@@ -1,0 +1,78 @@
+version: 2
+
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+
+  - name: stg_order_items
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          # 14 orders were quarantined in silver, so some items may point to a missing order: warn, don't fail
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+              config:
+                severity: warn
+      - name: order_item_id
+        data_tests:
+          - not_null
+
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_payments
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+
+  - name: stg_products
+    columns:
+      - name: product_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_sellers
+    columns:
+      - name: seller_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_reviews
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_geolocation
+    columns:
+      - name: zip_code_prefix
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_customer_profiles
+    columns:
+      - name: customer_unique_id
+        data_tests:
+          - unique
+          - not_null

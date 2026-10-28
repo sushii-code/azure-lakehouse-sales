@@ -42,3 +42,10 @@
 - Why: silver must be complete and trustworthy, and personal data must never reach analysts.
 - Found: 42 geolocation points outside Brazil; 19,010 postcode prefixes; 233,661 tokens; 0 personal columns in silver; reruns create 0 tokens.
 - Problems: Faker was not found because the restart and the import ran together (fixed by installing first, then importing in a separate cell); my translation check counted categories spelled the same in both languages as untranslated (fixed to use a has_translation flag).
+
+## Day 8 – dbt setup and staging models
+- Built: a dbt project connected to Databricks (profile outside the repo, token read from an environment variable); a generate_schema_name macro so models land in workspace.staging and workspace.gold; sources for the 9 silver tables; 9 staging views with clear column names; 19 data tests.
+- Learned: profiles.yml vs dbt_project.yml; env_var() keeps secrets out of files; sources vs ref; views for staging and tables for marts; how dbt builds schema names and how to override it; generic tests (unique, not_null, accepted_values, relationships); severity: warn vs error; dbt debug, dbt run, dbt test and dbt build.
+- Why: staging gives every later model one clean, consistently named place to read from, and tests catch broken keys automatically on every run instead of by hand.
+- Found: 9 views built; 27 of 28 steps passed with 0 errors; 15 order items point to the 14 orders quarantined in silver (relationship test warns, as designed).
+- Problems: the first dbt debug stopped with KeyboardInterrupt because the run was interrupted while dbt was still loading (fixed by rerunning and waiting); dbt run ran before the model files were saved, so it found nothing to build and every test failed with TABLE_OR_VIEW_NOT_FOUND (fixed by building the models first, then testing).

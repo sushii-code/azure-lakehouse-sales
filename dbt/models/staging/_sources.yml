@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: silver
+    description: Cleaned, typed tables built by the Databricks silver notebooks.
+    database: workspace   # Unity Catalog catalog
+    schema: silver
+    tables:
+      - name: orders
+        description: One row per order with status and typed timestamps (14 broken orders quarantined).
+      - name: order_items
+        description: One row per item within an order, with price and freight as DECIMAL(10,2).
+      - name: customers
+        description: One row per customer_id (new per order); customer_unique_id is the real person.
+      - name: payments
+        description: One row per payment method used for an order (invalid payments quarantined).
+      - name: products
+        description: One row per product, with English category names and an is_weight_suspect flag.
+      - name: sellers
+        description: One row per seller with cleaned city, state and postcode prefix.
+      - name: reviews
+        description: One review per order (the latest by answer time), deduplicated with ROW_NUMBER.
+      - name: geolocation
+        description: One row per postcode prefix with the average map point and most common city and state.
+      - name: customer_profiles
+        description: One row per real customer with tokens only (no names, emails or phones).
