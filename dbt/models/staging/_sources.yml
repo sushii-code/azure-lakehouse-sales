@@ -24,11 +24,37 @@ sources:
         description: One row per postcode prefix with the average map point and most common city and state.
       - name: customer_profiles
         description: One row per real customer with tokens only (no names, emails or phones).
+      - name: orders_quarantine
+        description: Orders set aside by silver quality rules, with a dq_issue reason (delivered_no_date, canceled_with_delivery).
+      - name: order_items_quarantine
+        description: Order items set aside by silver price rules (missing, invalid or not positive price).
+      - name: payments_quarantine
+        description: Payments set aside by silver rules (missing or negative value, or payment type not_defined).
+      - name: geolocation_quarantine
+        description: Map points outside Brazil or with invalid coordinates, removed before aggregating geolocation.
 
   - name: bronze
-    description: Raw tables in Databricks; used only where no silver table exists yet.
+    description: Raw tables exactly as received (all columns as text, plus audit columns); used for reconciliation and where no silver table exists yet.
     database: workspace   # Unity Catalog catalog
     schema: bronze
     tables:
+      - name: orders
+        description: Raw Olist orders, one row per order.
+      - name: order_items
+        description: Raw Olist order items, one row per item within an order.
+      - name: customers
+        description: Raw Olist customers, one row per customer_id.
+      - name: payments
+        description: Raw Olist payments, one row per payment method used for an order.
+      - name: reviews
+        description: Raw Olist reviews; some orders have more than one review.
+      - name: products
+        description: Raw Olist products, with the source's misspelled "lenght" columns.
+      - name: sellers
+        description: Raw Olist sellers, one row per seller.
+      - name: geolocation
+        description: Raw Olist map points, about 1 million rows with several points per postcode prefix.
+      - name: category_translation
+        description: Portuguese to English product category names.
       - name: customer_address_changes
         description: Simulated house moves (one row per move event) with the new city, state and the time it took effect; feeds dim_customer SCD Type 2.

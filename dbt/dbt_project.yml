@@ -23,3 +23,7 @@ models:
     marts:
       +materialized: table
       +schema: gold
+    # Audit: data-quality and reconciliation reports, stored as tables in workspace.audit
+    audit:
+      +materialized: table
+      +schema: audit

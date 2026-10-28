@@ -142,3 +142,63 @@ Grain: one row per customer (customer_unique_id) per address version. Built in `
 - **Results:** 102,092 versions = 96,082 current rows (one per customer) + 6,010 historical rows (all simulated moves; no same-time duplicates). The most versions any customer has is 3 (sao paulo SP, then martins MA, then peixoto DF).
 - **Known, explained gap (14 customers):** 96,096 current customers were expected, but 96,082 exist. The 14 missing customers' only order was quarantined in silver, so they have no valid first order and therefore no starting address. Their sales are already excluded from fact_sales, so every sale still has a customer_key.
 - **History preserved (example):** customer e2889baccec81ed3bed4d66c1c675cb2 bought on 2017-05-23 in eldorado do sul (version 1), moved on 2017-11-02, and bought again on 2017-11-27; that sale links to mendonça do sul (version 2).
+
+## Audit layer
+
+Built with dbt (`dbt/models/audit/`) as tables in `workspace.audit`, kept separate from gold so analysts never mistake a quality report for business data.
+
+### audit.reconciliation_report
+
+One row per table (orders, order_items, payments, customers, reviews, products, sellers, geolocation). It follows each table from bronze through silver and quarantine to gold and proves that every raw row was kept, quarantined, or removed on purpose for a documented reason.
+
+| Column | Meaning |
+| --- | --- |
+| table_name | The source table this row reconciles |
+| bronze_rows | Rows received in bronze (raw, exactly as loaded) |
+| silver_rows | Rows kept in silver after cleaning (for geolocation: valid map points before aggregation) |
+| quarantine_rows | Rows set aside in a silver `*_quarantine` table with a `dq_issue` reason |
+| removed_on_purpose | Rows deliberately left out later, for a documented reason (duplicate reviews, items of quarantined orders, customers with only quarantined orders) |
+| gold_rows | Rows in the matching gold table (NULL where gold stores only per-order totals) |
+| gold_table | Which gold table (or aggregated table) gold_rows refers to |
+| check_passed | TRUE when the counts add up for that table; any FALSE fails the build |
+| explanation | One sentence explaining the rule for that table |
+
+Latest real results from `workspace.audit.reconciliation_report` (all checks passed = true):
+
+| Table | Bronze | Silver | Quarantine | Removed on purpose | Gold | check_passed |
+| --- | --- | --- | --- | --- | --- | --- |
+| orders | 99,441 | 99,427 | 14 quarantined | 0 | 99,427 (fct_orders) | true |
+| order_items | 112,650 | 112,650 | 0 | 15 excluded (items of quarantined orders) | 112,635 (fact_sales) | true |
+| payments | 103,886 | 103,883 | 3 quarantined | 0 | aggregated per order in fct_orders | true |
+| customers | 99,441 | 99,441 | 0 | 14 excluded (only order was quarantined) | 96,082 current rows (dim_customer) | true |
+| reviews | 99,224 | 98,673 | 0 | 551 duplicates removed | review_score per order in fct_orders | true |
+| products | 32,951 | 32,951 | 0 | 0 | 32,951 (dim_product) | true |
+| sellers | 3,095 | 3,095 | 0 | 0 | 3,095 (dim_seller) | true |
+| geolocation | 1,000,163 | 1,000,121 valid points | 42 quarantined | 0 | 19,010 postcode prefixes (silver.geolocation) | true |
+
+### Singular tests for the audit layer
+
+| Test | What it proves |
+| --- | --- |
+| `assert_reconciliation_all_passed` | Every row of the reconciliation report has check_passed = TRUE, so no layer lost or created rows without a reason |
+| `assert_excluded_items_match_quarantine` | The items missing from fact_sales are exactly the 15 items whose orders were quarantined in silver, item by item (no sale lost by mistake, no broken order leaking in) |
+| `assert_missing_customers_match_quarantine` | The customers missing from dim_customer are exactly the 14 people whose only order was quarantined, person by person |
+
+### Revenue trail (item price, SUM(price))
+
+| Step | Revenue | Difference |
+| --- | --- | --- |
+| Silver order_items (all items) | 13,591,643.70 | |
+| Gold fact_sales (all sales) | 13,589,748.34 | minus 1,895.36 for the 15 excluded items of quarantined orders |
+| Gold fact_sales, delivered orders only | 13,220,248.93 | only delivered orders count as completed sales |
+| If payments were joined to items (fan-out) | 14,209,115.34 | would overstate revenue by 617,471.64 (about 4.5%); this is why payments are never joined to fact_sales |
+
+### Known gaps (documented and tested)
+
+- **15 order items** are not in fact_sales because their 14 orders were quarantined in silver (delivered with no delivery date, or canceled with a delivery date). Their order details are untrustworthy, so the items are excluded rather than reported as sales.
+- **14 customers** are not in dim_customer because their only order was quarantined. Without a valid first order there is no starting address for SCD Type 2. They have no sales in fact_sales either, so every sale still has a customer_key.
+
+### Screenshots
+
+- dbt lineage graph: ![dbt lineage](images/dbt_lineage.png)
+- Reconciliation report in Databricks: ![Reconciliation report](images/reconciliation_report.png)
