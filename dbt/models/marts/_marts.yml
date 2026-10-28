@@ -32,6 +32,25 @@ models:
       - name: seller_id
         description: Olist seller id (natural key).
 
+  - name: dim_customer
+    description: SCD Type 2 customer dimension; one row per customer per address version, tokens only for personal data.
+    columns:
+      - name: customer_key
+        description: Surrogate key (hash of customer_unique_id + valid_from), one per version.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: The real person (natural key); repeats once per version.
+        data_tests:
+          - not_null
+      - name: valid_from
+        description: When this address version started (first order or move time).
+      - name: valid_to
+        description: When the next version started; NULL for the current version.
+      - name: is_current
+        description: True for the customer's latest address version.
+
   - name: fact_sales
     description: One row per order item; excludes the 15 items of orders quarantined in silver; no payments joined.
     columns:
@@ -67,8 +86,18 @@ models:
                 field: date_key
               config:
                 severity: error
+      - name: customer_key
+        description: Links to the dim_customer version valid at purchase time (as-of join).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+              config:
+                severity: error
       - name: customer_unique_id
-        description: The real person who ordered (dim_customer comes on Day 10).
+        description: The real person who ordered.
 
   - name: fct_orders
     description: One row per order; items, payments and reviews aggregated to one row per order before joining.

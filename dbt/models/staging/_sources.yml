@@ -24,3 +24,11 @@ sources:
         description: One row per postcode prefix with the average map point and most common city and state.
       - name: customer_profiles
         description: One row per real customer with tokens only (no names, emails or phones).
+
+  - name: bronze
+    description: Raw tables in Databricks; used only where no silver table exists yet.
+    database: workspace   # Unity Catalog catalog
+    schema: bronze
+    tables:
+      - name: customer_address_changes
+        description: Simulated house moves (one row per move event) with the new city, state and the time it took effect; feeds dim_customer SCD Type 2.

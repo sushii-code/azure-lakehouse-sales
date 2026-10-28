@@ -56,3 +56,10 @@
 - Why: a star schema with one clear grain per fact lets every number add up correctly, and the tests prove the facts link to real dimension rows and agree with each other.
 - Found: fact_sales 112,635 rows (15 items of quarantined orders excluded); fct_orders 99,427 rows; item revenue 13,589,748.34, of which 13,220,248.93 from delivered orders; all 15 gold tests passed, including the reconciliation between the two facts.
 - Problems: dbt build failed with "found only 0 package(s) installed" because dbt deps had not been run yet (fixed by running dbt deps first, then dbt build).
+
+## Day 10 – SCD Type 2 customer dimension
+- Built: a bronze source and stg_customer_address_changes; dim_customer as an event-based SCD Type 2 dimension (first-order address + simulated moves, with valid_from, valid_to, is_current, version_number and tokenised personal data); customer_key added to fact_sales with an as-of join; 7 new tests including two singular SCD tests.
+- Learned: SCD Type 1 vs Type 2; event-based history vs dbt snapshots; UNION ALL to stack events; ROW_NUMBER to pick the first order and to remove same-time duplicates; LEAD to set valid_to and LAG to check for overlaps; ordering by event time handles late-arriving data; as-of (range) joins; Type 1 attributes inside a Type 2 dimension.
+- Why: regional sales for past periods must stay correct after customers move, so each sale must link to the address valid at purchase time, not the latest one.
+- Found: dim_customer has 102,092 rows (96,082 current + 6,010 moves); every customer has exactly one current row and no versions overlap; fact_sales still has 112,635 rows and every sale has a customer_key; a customer who moved on 2017-11-02 has a May 2017 sale linked to the old city and a November 2017 sale linked to the new one.
+- Problems: current rows were 96,082, not the expected 96,096, because the 14 customers whose only order was quarantined have no first-order address (correct, not a bug); the customer with the most versions had no sales after moving (their moves came after the data ends), so I searched for a customer with sales in two versions to prove the as-of join.

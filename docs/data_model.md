@@ -126,3 +126,17 @@ Built with dbt (`dbt/models/marts/`) as tables in `workspace.gold`, on top of st
 - **Fan-out design:** payments are never joined to fact_sales, because orders with several payment rows would duplicate items and inflate revenue (about 4.5%, see Keys and joins). Instead, fct_orders aggregates items, payments and reviews to one row per order in separate CTEs first, then joins them.
 - **Tests:** unique and not_null on every key; relationships from fact keys to all dimensions (severity error); singular test `assert_sales_match_orders` reconciles item price between fact_sales and fct_orders.
 - **Results:** 14 models built; 34 tests, 33 passed and 1 warned (the expected 15 items of quarantined orders in staging). Item revenue in fact_sales is 13,589,748.34, of which 13,220,248.93 is from delivered orders.
+
+## dim_customer (SCD Type 2)
+
+Grain: one row per customer (customer_unique_id) per address version. Built in `dbt/models/marts/dim_customer.sql`.
+
+- **Why Type 2:** customers move. Overwriting the address (Type 1) would move all their past sales to the new region and silently change historical regional reports. Type 2 keeps every address with the period it was valid, so each sale stays linked to where the customer lived at the time.
+- **Event-based, not dbt snapshots:** dbt snapshots record changes by comparing the table each time they run, so history only starts when snapshots start and the dates are load times. Here the versions are rebuilt on every run from dated events: version 1 is the address on the customer's first order (valid from that purchase), and each simulated move (`bronze.customer_address_changes`) adds a version from its `effective_at`. The full history is always reproducible.
+- **valid_from / valid_to / is_current:** valid_from is when the version started; valid_to is the next version's valid_from (LEAD), or NULL for the latest version; is_current is true when valid_to is NULL. Versions are back to back, with no gaps or overlaps.
+- **Same-time changes:** if two versions start at the same moment, only one is kept (ROW_NUMBER; a move beats the first-order address), so there are never zero-length versions or two current rows.
+- **Late-arriving changes:** versions are ordered by effective_at (when the move happened), never by load time, so a move loaded late still slots into the right place and the surrounding valid_to dates adjust on the next run.
+- **Personal data:** names, emails and phones are Type 1 attributes and appear only as tokens from `stg_customer_profiles`.
+- **As-of join in fact_sales:** each sale takes the customer_key of the version where valid_from <= purchased_at < valid_to (or valid_to is NULL). Because versions never overlap, exactly one matches and fact_sales keeps 112,635 rows.
+- **Tests:** customer_key unique and not null; fact_sales.customer_key not null and present in dim_customer; singular tests for exactly one current row per customer and no overlapping versions. All pass.
+- **Results:** 102,092 rows = 96,082 current rows (one per customer) + 6,010 historical rows (one per simulated move; no same-time duplicates). The 14 customers whose only order was quarantined in silver have no first-order address, so they are not in dim_customer (they have no sales in fact_sales either). Example: a customer who moved on 2017-11-02 has a sale on 2017-05-23 linked to version 1 (eldorado do sul) and a sale on 2017-11-27 linked to version 2 (mendonça do sul).
