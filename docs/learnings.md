@@ -49,3 +49,10 @@
 - Why: staging gives every later model one clean, consistently named place to read from, and tests catch broken keys automatically on every run instead of by hand.
 - Found: 9 views built; 27 of 28 steps passed with 0 errors; 15 order items point to the 14 orders quarantined in silver (relationship test warns, as designed).
 - Problems: the first dbt debug stopped with KeyboardInterrupt because the run was interrupted while dbt was still loading (fixed by rerunning and waiting); dbt run ran before the model files were saved, so it found nothing to build and every test failed with TABLE_OR_VIEW_NOT_FOUND (fixed by building the models first, then testing).
+
+## Day 9 – Gold star schema
+- Built: dbt_utils package (1.4.1); gold tables dim_date, dim_product, dim_seller, fact_sales (one row per order item) and fct_orders (one row per order); 15 new tests including relationships between facts and dimensions and a singular reconciliation test.
+- Learned: dbt packages and dbt deps; surrogate keys with generate_surrogate_key; a date spine with sequence + explode; INT yyyymmdd date keys; inner vs left joins as a deliberate design choice; aggregating to one row per key before joining to stop fan-out; singular tests (a query that fails if it returns rows); dbt build runs models and tests in dependency order.
+- Why: a star schema with one clear grain per fact lets every number add up correctly, and the tests prove the facts link to real dimension rows and agree with each other.
+- Found: fact_sales 112,635 rows (15 items of quarantined orders excluded); fct_orders 99,427 rows; item revenue 13,589,748.34, of which 13,220,248.93 from delivered orders; all 15 gold tests passed, including the reconciliation between the two facts.
+- Problems: dbt build failed with "found only 0 package(s) installed" because dbt deps had not been run yet (fixed by running dbt deps first, then dbt build).

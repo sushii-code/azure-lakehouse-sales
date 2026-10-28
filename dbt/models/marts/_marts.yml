@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: One row per calendar day, 2016-01-01 to 2018-12-31.
+    columns:
+      - name: date_key
+        description: Date as an INT yyyymmdd (e.g. 20170315); the key facts join on.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_product
+    description: One row per product, with English category and physical measurements.
+    columns:
+      - name: product_key
+        description: Surrogate key (hash of product_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: product_id
+        description: Olist product id (natural key).
+
+  - name: dim_seller
+    description: One row per seller, with location and the map point of their postcode prefix.
+    columns:
+      - name: seller_key
+        description: Surrogate key (hash of seller_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: seller_id
+        description: Olist seller id (natural key).
+
+  - name: fact_sales
+    description: One row per order item; excludes the 15 items of orders quarantined in silver; no payments joined.
+    columns:
+      - name: sales_key
+        description: Surrogate key (hash of order_id + order_item_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: product_key
+        description: Links to dim_product.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_key
+              config:
+                severity: error
+      - name: seller_key
+        description: Links to dim_seller.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_seller')
+                field: seller_key
+              config:
+                severity: error
+      - name: purchase_date_key
+        description: Purchase date as yyyymmdd; links to dim_date.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+              config:
+                severity: error
+      - name: customer_unique_id
+        description: The real person who ordered (dim_customer comes on Day 10).
+
+  - name: fct_orders
+    description: One row per order; items, payments and reviews aggregated to one row per order before joining.
+    columns:
+      - name: order_id
+        description: Olist order id (natural key and grain).
+        data_tests:
+          - unique
+          - not_null
+      - name: purchase_date_key
+        description: Purchase date as yyyymmdd; links to dim_date.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+              config:
+                severity: error

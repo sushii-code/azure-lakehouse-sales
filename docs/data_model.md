@@ -109,3 +109,20 @@ Note: empty delivery dates are not errors; 2,965 orders were never delivered (ca
 - Access: analysts read silver and gold only; the restricted schema is limited to the data protection team.
 - Right to erasure: deleting a person's vault entries makes their tokens meaningless everywhere, without rebuilding other tables.
 - Simulated house moves: `workspace.bronze.customer_address_changes` (4,782 customers, 6,010 moves) for SCD Type 2.
+
+## Gold layer (star schema)
+
+Built with dbt (`dbt/models/marts/`) as tables in `workspace.gold`, on top of staging views in `workspace.staging`.
+
+| Model | Grain | Purpose |
+| --- | --- | --- |
+| dim_date | One row per day, 2016-01-01 to 2018-12-31 | Calendar attributes (year, quarter, month, weekday, weekend flag); generated as a date spine so days with no sales still exist |
+| dim_product | One row per product | Surrogate key, English category, measurements and is_weight_suspect flag |
+| dim_seller | One row per seller | Surrogate key, location, and the map point of the postcode prefix (left join, so no seller is lost) |
+| fact_sales | One row per order item | Main sales fact: price, freight, item_total, delivery_days, is_late, is_delivered; keys to product, seller and date |
+| fct_orders | One row per order | Order-level fact: item count and value, payment total, instalments, review score, delivery_days, is_late |
+
+- **Quarantined orders are excluded:** fact_sales inner joins items to orders, so the 15 items belonging to the 14 orders quarantined in silver are left out (112,650 - 15 = 112,635 rows). fct_orders has 99,427 rows (99,441 - 14).
+- **Fan-out design:** payments are never joined to fact_sales, because orders with several payment rows would duplicate items and inflate revenue (about 4.5%, see Keys and joins). Instead, fct_orders aggregates items, payments and reviews to one row per order in separate CTEs first, then joins them.
+- **Tests:** unique and not_null on every key; relationships from fact keys to all dimensions (severity error); singular test `assert_sales_match_orders` reconciles item price between fact_sales and fct_orders.
+- **Results:** 14 models built; 34 tests, 33 passed and 1 warned (the expected 15 items of quarantined orders in staging). Item revenue in fact_sales is 13,589,748.34, of which 13,220,248.93 is from delivered orders.
