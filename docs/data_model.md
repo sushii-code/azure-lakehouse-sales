@@ -91,3 +91,23 @@ Will cover: which columns are dropped, which are tokenised, where the token mapp
 Reconciliation: bronze = silver + quarantine for orders (99,441 = 99,427 + 14), order_items (112,650) and customers (99,441). All OK.
 
 Note: empty delivery dates are not errors; 2,965 orders were never delivered (canceled, unavailable or in transit).
+
+## Silver layer (part 2)
+
+| Table | Changes from bronze | Quarantine / notes |
+| --- | --- | --- |
+| silver.payments | Sequential and instalments as INT; payment_value as DECIMAL(10,2); payment type cleaned | Rows with missing, negative or not_defined payments quarantined; bronze 103,886 = silver + quarantine |
+| silver.products | Source typos fixed (lenght to length); measurements as INT; English category names joined from the translation table | 610 products have no category; 2 categories have no translation; 6 products flagged is_weight_suspect (flag, not quarantine, so no order items are orphaned) |
+| silver.sellers | City lowercased, state uppercased, postcode padded to 5 characters | None |
+| silver.geolocation | Coordinates typed; points outside Brazil quarantined; aggregated to one row per postcode prefix (average point, most common city and state) | 42 points quarantined; 1,000,121 valid points aggregated to 19,010 postcode prefixes, preventing fan-out |
+
+## Personal data protection (UK GDPR)
+
+- Olist is anonymised, so names, emails and phones were simulated with Faker (seeded, so the data is repeatable) for all 96,096 real customers.
+- Raw personal data lives only in `workspace.restricted.customer_profiles_raw`.
+- `workspace.restricted.token_vault` maps each real value to a random UUID token: 233,661 tokens (names repeat across customers; emails are unique).
+- New tokens are created with a left anti join, so reruns add zero tokens (idempotent).
+- `workspace.silver.customer_profiles` contains tokens only. Checks: no personal columns, 0 missing tokens, 96,096 rows = real customers.
+- Access: analysts read silver and gold only; the restricted schema is limited to the data protection team.
+- Right to erasure: deleting a person's vault entries makes their tokens meaningless everywhere, without rebuilding other tables.
+- Simulated house moves: `workspace.bronze.customer_address_changes` (4,782 customers, 6,010 moves) for SCD Type 2.

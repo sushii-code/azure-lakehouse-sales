@@ -35,3 +35,10 @@
 - Learned: F.when / .otherwise for rule labels; try_to_timestamp and try_cast (return NULL instead of failing, so failures must be counted); DECIMAL(10,2) for money because DOUBLE drifts; lpad to keep postcode leading zeros; window functions (partitionBy + orderBy + ROW_NUMBER) to keep one row per group.
 - Why: silver gives gold clean, correctly typed data; quarantine keeps bad rows with a reason instead of deleting them; one review per order prevents fan-out when gold joins reviews to orders.
 - Found: 0 failed date conversions; 14 orders quarantined (delivered_no_date, canceled_with_delivery); 551 duplicate reviews removed (99,224 to 98,673); 2,965 orders with no delivery date were never delivered, so empty is correct there; bronze = silver + quarantine for orders (99,441 = 99,427 + 14), order_items (112,650) and customers (99,441).
+
+## Day 7 – Silver part 2 and personal data
+- Built: silver payments, products, sellers and geolocation; simulated customer profiles and house moves with Faker; a restricted schema, token vault and tokenised silver.customer_profiles.
+- Learned: flag vs quarantine for dimensions; fixing source typos; renaming columns by position (BOM); aggregating to one row per key to stop fan-out; valid-range checks; synthetic data and seeds; PII and quasi-identifiers; masking vs hashing vs encryption vs tokenisation; left anti join; the lazy evaluation trap; GRANT and REVOKE; right to erasure.
+- Why: silver must be complete and trustworthy, and personal data must never reach analysts.
+- Found: 42 geolocation points outside Brazil; 19,010 postcode prefixes; 233,661 tokens; 0 personal columns in silver; reruns create 0 tokens.
+- Problems: Faker was not found because the restart and the import ran together (fixed by installing first, then importing in a separate cell); my translation check counted categories spelled the same in both languages as untranslated (fixed to use a has_translation flag).
