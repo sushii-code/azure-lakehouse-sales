@@ -14,6 +14,23 @@
 -- the customer version whose validity window contains the purchase time
 -- (valid_from <= purchased_at < valid_to, or no valid_to for the current version).
 -- Versions never overlap, so exactly one version matches and the row count does not change.
+--
+-- Incremental (Day 12): instead of rebuilding all 112,635 rows every run, dbt only processes
+-- sales purchased since the newest sale already in the table (minus a 3-day safety window)
+-- and MERGEs them in on sales_key: existing rows are updated, new rows are inserted.
+-- Limitation: changes to older sales (e.g. a late status update, or a late-arriving customer
+-- move that changes which dim_customer version applies) are only picked up by a full refresh.
+
+{# materialized='incremental': keep the existing table and only add/update rows            #}
+{# incremental_strategy='merge': MERGE INTO - update rows that match, insert the rest         #}
+{# unique_key='sales_key': how MERGE decides a row "matches" (one row per order item)         #}
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='sales_key'
+    )
+}}
 
 with order_items as (
 
@@ -48,6 +65,7 @@ select
     dim_customer.customer_key,      -- the customer's address version at purchase time
     customers.customer_unique_id,
     cast(date_format(orders.purchased_at, 'yyyyMMdd') as int)          as purchase_date_key,
+    orders.purchased_at,            -- exact purchase time; the incremental filter below needs it
     orders.order_status,
     order_items.price,
     order_items.freight_value,
@@ -65,3 +83,10 @@ left join dim_customer
     on customers.customer_unique_id = dim_customer.customer_unique_id
     and orders.purchased_at >= dim_customer.valid_from
     and (dim_customer.valid_to is null or orders.purchased_at < dim_customer.valid_to)
+
+{% if is_incremental() %}               -- true only on a normal run when the table already exists (skipped on --full-refresh)
+where orders.purchased_at >= (          -- only sales purchased on or after...
+    select max(purchased_at) - interval 3 days   -- ...the newest sale already loaded, minus 3 days (lookback window)
+    from {{ this }}                     -- {{ this }} = the existing workspace.gold.fact_sales table
+)
+{% endif %}                             -- end of the incremental-only filter
