@@ -47,9 +47,7 @@ Will cover: how change events are ordered by effective timestamp; how multiple s
 
 ## Personal data
 
-*To complete when building the silver layer.*
-
-Will cover: which columns are dropped, which are tokenised, where the token mapping lives and who can read it. Note: the original Olist data is already anonymised (no names or emails); the simulated customer data added in this project includes names and emails, which will be tokenised in silver.
+See [Personal data protection (UK GDPR)](#personal-data-protection-uk-gdpr) below.
 
 ### Data-quality findings 
 
