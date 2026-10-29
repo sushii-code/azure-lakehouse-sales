@@ -202,3 +202,53 @@ Latest real results from `workspace.audit.reconciliation_report` (all checks pas
 
 - dbt lineage graph: ![dbt lineage](images/dbt_lineage.png)
 - Reconciliation report in Databricks: ![Reconciliation report](images/reconciliation_report.png)
+
+## Orchestration
+
+The whole pipeline runs as one Databricks job, `olist_lakehouse_pipeline` (Workflows > Jobs). Every task runs on serverless compute. The job definition is documented in [jobs/olist_lakehouse_pipeline.yml](../jobs/olist_lakehouse_pipeline.yml) (written by hand to match the job, not exported).
+
+### Task graph
+
+```
+setup -> bronze_ingest -+-> build_silver -> customer_pii -+-> dbt_build
+                        |                                 |
+                        +-> silver_more ------------------+
+```
+
+| Task | Runs | Depends on |
+| --- | --- | --- |
+| setup | notebook 00_setup: schemas and landing volume | nothing |
+| bronze_ingest | notebook 01_bronze_ingest: 9 CSVs into bronze | setup |
+| build_silver | notebook 02_build_silver: silver orders, order_items, customers, reviews | bronze_ingest |
+| silver_more | notebook 03_silver_more_: silver payments, products, sellers, geolocation | bronze_ingest |
+| customer_pii | notebook 04_customer_pii: simulated profiles, house moves, token vault | build_silver |
+| dbt_build | dbt deps + dbt build (project from GitHub, folder dbt) | customer_pii and silver_more |
+
+### Why it is designed this way
+
+- **build_silver and silver_more run in parallel:** silver_more only reads bronze tables, so it does not need anything build_silver produces. Running them side by side saves time.
+- **customer_pii waits for build_silver:** it reads silver.customers (to simulate one profile per real person) and silver.orders (to date each person's first order for the house moves), and both are built by build_silver.
+- **dbt_build runs last and waits for both branches:** dbt reads every silver table and the customer data (stg_customer_profiles, customer_address_changes), so it can only start once both build_silver/customer_pii and silver_more have finished.
+- **No table-update trigger:** Databricks suggested triggering the job when a table is updated. The job writes the bronze tables itself, so every run would update them and trigger the next run, in an endless loop. The job is started by schedule or manually instead.
+- **The dbt task needs no token:** Databricks creates the dbt connection itself, using the job's identity and the chosen SQL warehouse, so no token is stored in the job, the repo or a profiles.yml.
+- **The daily 06:00 schedule (Europe/London) is paused:** the data is a fixed dataset, so running every day would only use up Free Edition compute. The job is run manually; unpausing the schedule is all that is needed to make it daily.
+
+### First full run
+
+| Task | Duration |
+| --- | --- |
+| setup | 16s |
+| bronze_ingest | 32s |
+| build_silver | 39s |
+| silver_more | 38s |
+| customer_pii | 38s |
+| dbt_build | 2m 31s |
+| **Total** | **4m 41s** |
+
+The run read 17.3 million rows and wrote 2.6 million rows.
+
+![Databricks job run graph](images/databricks_job_run.png)
+
+![Databricks job timeline](images/databricks_job_timeline.png)
+
+The timeline shows build_silver and silver_more running at the same time after bronze_ingest, and dbt_build waiting until both branches (including customer_pii) have finished.

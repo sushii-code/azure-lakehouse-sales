@@ -1,0 +1,100 @@
+# Databricks job: olist_lakehouse_pipeline
+#
+# Written by hand to DOCUMENT the job as it is set up in Databricks (Workflows > Jobs).
+# It was NOT exported from Databricks - the YAML export was not available - so check it
+# against the job UI before deploying it. It matches the task graph in
+# docs/images/databricks_job_run.png.
+#
+# Format: a Databricks Asset Bundle job resource. To deploy it, include this file from a
+# databricks.yml bundle and run `databricks bundle deploy`.
+# Placeholders to replace: <your-email> (your Databricks user folder) and <warehouse-id>
+# (the SQL warehouse dbt runs on: SQL Warehouses > your warehouse > Connection details).
+#
+# Task graph:
+#   setup -> bronze_ingest -> build_silver -> customer_pii -> dbt_build
+#                          -> silver_more  ----------------> dbt_build
+
+resources:
+  jobs:
+    olist_lakehouse_pipeline:
+      name: olist_lakehouse_pipeline
+
+      # Daily at 06:00 UK time, but PAUSED: it only runs when started manually
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: Europe/London
+        pause_status: PAUSED
+
+      # Where the dbt task reads the dbt project from (the notebooks below use the workspace)
+      git_source:
+        git_url: https://github.com/sushii-code/azure-lakehouse-sales
+        git_provider: gitHub
+        git_branch: main
+
+      # Serverless Python environment for the dbt task: installs dbt with the Databricks adapter
+      environments:
+        - environment_key: dbt_env
+          spec:
+            client: "1"
+            dependencies:
+              - dbt-databricks>=1.12.0,<2.0.0
+
+      tasks:
+        # 1. Create the bronze, silver and gold schemas and the landing volume
+        - task_key: setup
+          notebook_task:
+            notebook_path: "/Workspace/Users/<your-email>/00_setup (1)"
+            source: WORKSPACE
+
+        # 2. Load the 9 Olist CSVs from the landing volume into bronze Delta tables
+        - task_key: bronze_ingest
+          depends_on:
+            - task_key: setup
+          notebook_task:
+            notebook_path: "/Workspace/Users/<your-email>/01_bronze_ingest (1)"
+            source: WORKSPACE
+
+        # 3a. silver orders, order_items, customers, reviews (+ quarantine tables)
+        - task_key: build_silver
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: "/Workspace/Users/<your-email>/02_build_silver"
+            source: WORKSPACE
+
+        # 3b. silver payments, products, sellers, geolocation (+ quarantine tables)
+        - task_key: silver_more
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            # The notebook name really ends with an underscore
+            notebook_path: "/Workspace/Users/<your-email>/03_silver_more_"
+            source: WORKSPACE
+
+        # 4. Simulated customer profiles, house moves and the token vault.
+        #    Needs silver.customers and silver.orders, so it waits for build_silver.
+        - task_key: customer_pii
+          depends_on:
+            - task_key: build_silver
+          notebook_task:
+            notebook_path: "/Workspace/Users/<your-email>/04_customer_pii"
+            source: WORKSPACE
+
+        # 5. dbt: staging views, gold star schema, audit report and all tests.
+        #    Waits for every silver table and the customer data.
+        - task_key: dbt_build
+          depends_on:
+            - task_key: customer_pii
+            - task_key: silver_more
+          environment_key: dbt_env
+          dbt_task:
+            source: GIT
+            project_directory: dbt
+            commands:
+              - dbt deps
+              - dbt build
+            warehouse_id: <warehouse-id>
+            catalog: workspace
+            # Default schema for the dbt connection. Models still land in staging, gold and
+            # audit because dbt/macros/generate_schema_name.sql uses each folder's +schema as-is.
+            schema: staging

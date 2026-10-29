@@ -29,6 +29,8 @@ profiles.yml
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+# dbt writes logs/ here if it is run from the repo root instead of dbt/
+logs/
 
 # OS / editor
 .DS_Store
