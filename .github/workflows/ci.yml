@@ -1,0 +1,66 @@
+# CI for azure-lakehouse-sales.
+# Checks code style and that the dbt project is valid on every push to main and every pull request.
+# It NEVER connects to Databricks: no Databricks token, host or GitHub secret is used anywhere.
+
+name: CI                                   # name shown on the Actions tab and in the README badge
+
+on:                                        # when this workflow runs
+  push:
+    branches: [main]                       # every push to main
+  pull_request:                            # every pull request (any branch)
+
+permissions:
+  contents: read                           # jobs may only read the repo, never write to it
+
+jobs:
+  lint-and-parse:
+    name: Lint and dbt parse               # job name shown on GitHub
+    runs-on: ubuntu-latest                 # a fresh Linux machine from GitHub for each run
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4          # copy the repo onto the machine
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5      # install Python
+        with:
+          python-version: "3.12"
+          cache: pip                       # reuse downloaded packages between runs (faster)
+          cache-dependency-path: requirements-ci.txt   # refresh the cache when this file changes
+
+      - name: Install CI tools
+        run: pip install -r requirements-ci.txt        # ruff, sqlfluff and dbt at pinned versions
+
+      - name: Lint Python (ruff)
+        run: ruff check .                  # style and bug checks for all .py and notebook files
+
+      - name: Lint SQL (sqlfluff)
+        run: sqlfluff lint dbt/models dbt/tests        # uses dbt/.sqlfluff; needs no database
+
+      - name: Install dbt packages
+        working-directory: dbt             # run inside the dbt project folder
+        run: dbt deps                      # download dbt_utils (version pinned in package-lock.yml)
+
+      - name: Check the dbt project parses
+        working-directory: dbt
+        # --profiles-dir ../ci uses the FAKE profile in ci/profiles.yml; dbt parse checks every
+        # model, test, source and ref() but never opens a connection, so the fake values are enough
+        run: dbt parse --profiles-dir ../ci
+
+  secret-scan:
+    name: Scan for leaked secrets          # separate job so it runs in parallel with the one above
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read                       # read the code and its history
+      pull-requests: read                  # gitleaks reads the list of commits in a pull request
+    steps:
+      - name: Check out the full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                   # all commits, so a secret committed and later deleted is still found
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2  # fails the job if anything looks like a password, key or token
+        env:
+          # GitHub's own short-lived token for this run (created automatically, not a Databricks secret);
+          # gitleaks uses it only to read commit information from GitHub
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

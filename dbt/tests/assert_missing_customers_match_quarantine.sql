@@ -25,13 +25,16 @@ only_quarantined_customers as (
     left join {{ source('silver', 'orders_quarantine') }} as quarantined   -- their quarantined orders (if any)
         on customers.customer_id = quarantined.customer_id
     group by customers.customer_unique_id                   -- count per person...
-    having count(orders.order_id) = 0                       -- ...no valid order at all
-       and count(quarantined.order_id) > 0                  -- ...and at least one quarantined order
+    having
+        count(orders.order_id) = 0                       -- ...no valid order at all
+        and count(quarantined.order_id) > 0                  -- ...and at least one quarantined order
 
 )
 
 -- People missing from dim_customer for some other reason (a customer lost by mistake)
-select 'missing_but_has_valid_order' as problem, mismatch.*
+select
+    'missing_but_has_valid_order' as problem,
+    mismatch.*
 from (
     select * from missing_customers                         -- in list A
     except
@@ -41,7 +44,9 @@ from (
 union all
 
 -- People with only quarantined orders who still got a dim_customer row (should not happen)
-select 'only_quarantined_but_in_dim_customer' as problem, mismatch.*
+select
+    'only_quarantined_but_in_dim_customer' as problem,
+    mismatch.*
 from (
     select * from only_quarantined_customers                -- in list B
     except

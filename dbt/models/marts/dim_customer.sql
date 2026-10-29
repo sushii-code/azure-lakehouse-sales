@@ -49,7 +49,7 @@ first_address as (
         from customers
         inner join orders
             on customers.customer_id = orders.customer_id
-    )
+    ) as ranked_orders
     where order_rank = 1
 
 ),
@@ -88,10 +88,10 @@ deduped as (
             *,
             row_number() over (
                 partition by customer_unique_id, effective_at
-                order by source_priority desc, city, state
+                order by source_priority desc, city asc, state asc
             ) as same_time_rank
         from all_versions
-    )
+    ) as ranked_versions
     where same_time_rank = 1
 
 ),

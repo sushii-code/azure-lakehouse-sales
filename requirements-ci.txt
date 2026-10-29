@@ -1,0 +1,6 @@
+# Tools used by GitHub Actions CI (.github/workflows/ci.yml).
+# Pinned to the versions used locally so CI and my machine give the same results.
+ruff==0.17.3
+sqlfluff==4.4.0
+dbt-core==1.12.5
+dbt-databricks==1.12.8

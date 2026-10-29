@@ -1,0 +1,46 @@
+# SQLFluff: SQL linter for the dbt models and tests, run with
+# `sqlfluff lint dbt/models dbt/tests` locally and in CI.
+
+[sqlfluff]
+dialect = databricks
+# jinja (not the dbt templater) renders {{ ref() }}, {{ source() }} etc. without a
+# database connection, so linting works in CI with no Databricks access
+templater = jinja
+# 140, not 120: the reconciliation report's one-sentence explanations are string literals
+# that can't be wrapped without changing their text
+max_line_length = 140
+
+# Rules switched off because they fight real patterns in this project:
+# AL03 - UNION ALL branches take their column names from the first SELECT, and scalar
+#        (select count(*) ...) subqueries never need a name
+# RF04 - year, quarter, month and state are real output column names; renaming them
+#        would change the tables that reports read
+# AM04 - `select * from {{ ref(...) }}` import CTEs are the standard dbt pattern
+# ST06 - reordering columns would change the column order of the output tables
+exclude_rules = AL03, RF04, AM04, ST06
+
+[sqlfluff:templater:jinja]
+# Built-in stand-ins for ref, source, config, is_incremental, this, var...
+apply_dbt_builtins = True
+# Stand-ins for package macros such as dbt_utils.generate_surrogate_key (see the folder)
+library_path = sqlfluff_libs
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+# select, from, where... in lower case
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+# null, true, false in lower case
+capitalisation_policy = lower
+
+[sqlfluff:rules:layout.long_lines]
+# Long explanatory comments are fine; only long code lines are reported
+ignore_comment_lines = True
+ignore_comment_clauses = True

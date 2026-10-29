@@ -29,10 +29,11 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 # CELL 2 - Setup
+import random  # Python's random-number tools
+from datetime import timedelta  # lets us add days to a date
+
+from faker import Faker  # library that generates realistic fake data
 from pyspark.sql import functions as F
-from faker import Faker            # library that generates realistic fake data
-import random                      # Python's random-number tools
-from datetime import timedelta     # lets us add days to a date
 
 # Seeds make "random" results REPEATABLE: same seed -> same fake people every run.
 # That keeps the pipeline idempotent and the numbers reproducible for your README.

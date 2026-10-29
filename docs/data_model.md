@@ -252,3 +252,37 @@ The run read 17.3 million rows and wrote 2.6 million rows.
 ![Databricks job timeline](images/databricks_job_timeline.png)
 
 The timeline shows build_silver and silver_more running at the same time after bronze_ingest, and dbt_build waiting until both branches (including customer_pii) have finished.
+
+## CI (GitHub Actions)
+
+CI (continuous integration) means GitHub automatically checks the code every time it changes, so mistakes are caught before they reach `main` instead of during a Databricks run. The workflow is [.github/workflows/ci.yml](../.github/workflows/ci.yml); it runs on every push to `main` and every pull request, and the badge at the top of the README shows whether the latest run passed.
+
+It never connects to Databricks: no Databricks token, host or GitHub secret is used.
+
+### What each check does
+
+| Check | Tool | What it catches |
+| --- | --- | --- |
+| Python lint | `ruff check .` | Python bugs (undefined or unused names) and style (import order, whitespace) in the notebooks and scripts; config in `ruff.toml` |
+| SQL lint | `sqlfluff lint dbt/models dbt/tests` | Inconsistent SQL style (keyword case, indentation, spacing, unqualified columns); renders the Jinja itself, so it needs no database; config in `dbt/.sqlfluff` |
+| dbt project check | `dbt deps` + `dbt parse --profiles-dir ../ci` | Broken dbt project files: YAML errors, a `ref()` or `source()` that points to nothing, bad configs, missing macros |
+| Secret scan | `gitleaks/gitleaks-action@v2` (separate job) | Anything in the code or its full git history that looks like a password, key or token |
+
+The tool versions are pinned in `requirements-ci.txt` (ruff 0.17.3, sqlfluff 4.4.0, dbt-core 1.12.5, dbt-databricks 1.12.8) so CI gives the same results as my machine.
+
+### Why a dummy profile
+
+`dbt parse` needs a profile with the right shape, but it never opens a connection. So CI uses [ci/profiles.yml](../ci/profiles.yml), which has a fake host, fake HTTP path and the token `dummy-not-a-real-token`. My real token stays only in my own terminal, so it can never leak through CI logs, a fork or a pull request. `.gitignore` ignores every `profiles.yml` except this fake one.
+
+### Rules switched off (and why)
+
+| Tool | Rule | Why it is off |
+| --- | --- | --- |
+| ruff | E402 import not at top of file | Databricks notebooks import in later cells, and `customer_pii.py` must import Faker only after `%pip install` and a Python restart |
+| ruff | E501 line too long | Notebook markdown (`# MAGIC` lines) and teaching comments are long on purpose |
+| sqlfluff | AL03 expression without alias | UNION ALL branches take their column names from the first SELECT, and `(select count(*) ...)` subqueries never need a name |
+| sqlfluff | RF04 keyword used as identifier | `year`, `quarter`, `month` and `state` are real output column names; renaming them would change the tables |
+| sqlfluff | AM04 unknown number of columns | `select * from {{ ref(...) }}` import CTEs are the standard dbt pattern |
+| sqlfluff | ST06 column order | Reordering columns would change the column order of the output tables |
+
+The SQL line limit is 140 (not 120) because the reconciliation report's one-sentence explanations are string literals that cannot be wrapped. All lint fixes were formatting only: the rendered SQL of all 23 models and tests was compared before and after, and the only differences were added table aliases and an explicit `asc`.

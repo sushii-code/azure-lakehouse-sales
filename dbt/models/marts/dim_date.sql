@@ -12,11 +12,11 @@ with spine as (
 select
     cast(date_format(date_day, 'yyyyMMdd') as int) as date_key,
     date_day,
-    year(date_day)                                 as year,
-    quarter(date_day)                              as quarter,
-    month(date_day)                                as month,
-    date_format(date_day, 'MMMM')                  as month_name,
-    dayofmonth(date_day)                           as day_of_month,
-    date_format(date_day, 'EEEE')                  as day_of_week_name,
-    dayofweek(date_day) in (1, 7)                  as is_weekend   -- 1 = Sunday, 7 = Saturday
+    year(date_day) as year,
+    quarter(date_day) as quarter,
+    month(date_day) as month,
+    date_format(date_day, 'MMMM') as month_name,
+    dayofmonth(date_day) as day_of_month,
+    date_format(date_day, 'EEEE') as day_of_week_name,
+    dayofweek(date_day) in (1, 7) as is_weekend   -- 1 = Sunday, 7 = Saturday
 from spine

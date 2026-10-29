@@ -1,0 +1,22 @@
+# Ruff: Python linter, run locally and in CI with `ruff check .`
+target-version = "py312"
+line-length = 120
+
+# Folders that are not my code (virtualenv, dbt build output, downloaded packages, data files)
+extend-exclude = [".venv", "dbt/target", "dbt/dbt_packages", "data"]
+
+# Databricks notebooks get these for free (no import), so ruff must not call them undefined
+builtins = ["spark", "dbutils", "display"]
+
+[lint]
+# E/W = pycodestyle style errors and warnings, F = Pyflakes (real bugs like unused or
+# undefined names), I = import sorting
+select = ["E", "W", "F", "I"]
+ignore = [
+    # Databricks notebooks import inside later cells, and customer_pii.py must import Faker
+    # only AFTER `%pip install` + `dbutils.library.restartPython()`, so imports can't all be at the top
+    "E402",
+    # Notebook markdown (# MAGIC lines) and teaching comments are long on purpose;
+    # wrapping them would make the notebooks harder to read in Databricks
+    "E501",
+]

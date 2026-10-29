@@ -1,5 +1,6 @@
-import duckdb
 from pathlib import Path
+
+import duckdb
 
 PROJECT = Path(__file__).resolve().parent.parent
 RAW = PROJECT / "data" / "raw"

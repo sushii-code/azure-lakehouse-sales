@@ -1,5 +1,6 @@
-import duckdb
 from pathlib import Path
+
+import duckdb
 
 # Find the project folder from this script's own location
 PROJECT = Path(__file__).resolve().parent.parent

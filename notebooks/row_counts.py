@@ -1,6 +1,7 @@
-import duckdb
 import glob
 import os
+
+import duckdb
 
 files = sorted(glob.glob("data/raw/*.csv"))
 print("Files found:", len(files))

@@ -61,32 +61,33 @@ select
     order_items.order_id,
     order_items.order_item_id,
     {{ dbt_utils.generate_surrogate_key(['order_items.product_id']) }} as product_key,
-    {{ dbt_utils.generate_surrogate_key(['order_items.seller_id']) }}  as seller_key,
+    {{ dbt_utils.generate_surrogate_key(['order_items.seller_id']) }} as seller_key,
     dim_customer.customer_key,      -- the customer's address version at purchase time
     customers.customer_unique_id,
-    cast(date_format(orders.purchased_at, 'yyyyMMdd') as int)          as purchase_date_key,
+    cast(date_format(orders.purchased_at, 'yyyyMMdd') as int) as purchase_date_key,
     orders.purchased_at,            -- exact purchase time; the incremental filter below needs it
     orders.order_status,
     order_items.price,
     order_items.freight_value,
-    order_items.price + order_items.freight_value                       as item_total,
-    datediff(orders.delivered_to_customer_at, orders.purchased_at)      as delivery_days,
+    order_items.price + order_items.freight_value as item_total,
+    datediff(orders.delivered_to_customer_at, orders.purchased_at) as delivery_days,
     -- NULL for orders not yet delivered (we can't know yet if they will be late)
-    orders.delivered_to_customer_at > orders.estimated_delivery_at      as is_late,
-    orders.order_status = 'delivered'                                   as is_delivered
+    orders.delivered_to_customer_at > orders.estimated_delivery_at as is_late,
+    orders.order_status = 'delivered' as is_delivered
 from order_items
 inner join orders
     on order_items.order_id = orders.order_id
 left join customers
     on orders.customer_id = customers.customer_id
 left join dim_customer
-    on customers.customer_unique_id = dim_customer.customer_unique_id
-    and orders.purchased_at >= dim_customer.valid_from
-    and (dim_customer.valid_to is null or orders.purchased_at < dim_customer.valid_to)
+    on
+        customers.customer_unique_id = dim_customer.customer_unique_id
+        and orders.purchased_at >= dim_customer.valid_from
+        and (dim_customer.valid_to is null or orders.purchased_at < dim_customer.valid_to)
 
 {% if is_incremental() %}               -- true only on a normal run when the table already exists (skipped on --full-refresh)
-where orders.purchased_at >= (          -- only sales purchased on or after...
-    select max(purchased_at) - interval 3 days   -- ...the newest sale already loaded, minus 3 days (lookback window)
-    from {{ this }}                     -- {{ this }} = the existing workspace.gold.fact_sales table
-)
+    where orders.purchased_at >= (          -- only sales purchased on or after...
+        select max(existing.purchased_at) - interval 3 days   -- ...the newest sale already loaded, minus 3 days (lookback window)
+        from {{ this }} as existing         -- {{ this }} = the existing workspace.gold.fact_sales table
+    )
 {% endif %}                             -- end of the incremental-only filter

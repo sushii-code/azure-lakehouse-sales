@@ -1,5 +1,7 @@
 # Azure Lakehouse: Governed Sales Star Schema with SCD2
 
+[![CI](https://github.com/sushii-code/azure-lakehouse-sales/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sushii-code/azure-lakehouse-sales/actions/workflows/ci.yml)
+
 > Status: in progress
 
 ## Business problem

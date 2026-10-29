@@ -6,7 +6,9 @@
 
 with sales_per_order as (
 
-    select order_id, sum(price) as price_total
+    select
+        order_id,
+        sum(price) as price_total
     from {{ ref('fact_sales') }}
     group by order_id
 
@@ -14,7 +16,7 @@ with sales_per_order as (
 
 select
     sum(sales_per_order.price_total) as fact_sales_price_total,
-    sum(fct_orders.items_value)      as fct_orders_items_value
+    sum(fct_orders.items_value) as fct_orders_items_value
 from sales_per_order
 inner join {{ ref('fct_orders') }} as fct_orders
     on sales_per_order.order_id = fct_orders.order_id

@@ -1,0 +1,16 @@
+# FAKE dbt profile for CI only. Every value here is made up.
+# CI only runs `dbt parse`, which reads and checks the project files but never connects to
+# Databricks, so it needs a profile with the right shape but no real host or token.
+# My real profile lives outside the repo in ~/.dbt/profiles.yml and is never committed.
+
+azure_lakehouse_sales:          # must match `profile:` in dbt/dbt_project.yml
+  target: ci
+  outputs:
+    ci:
+      type: databricks
+      catalog: workspace
+      schema: gold
+      host: dummy-host.cloud.databricks.com          # fake
+      http_path: /sql/1.0/warehouses/dummy           # fake
+      token: "dummy-not-a-real-token"                # fake  gitleaks:allow
+      threads: 1

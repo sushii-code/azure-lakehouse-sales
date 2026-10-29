@@ -10,7 +10,7 @@ with source as (
 
 select
     customer_unique_id,
-    lower(trim(new_city))  as city,
+    lower(trim(new_city)) as city,
     upper(trim(new_state)) as state,
     effective_at
 from source

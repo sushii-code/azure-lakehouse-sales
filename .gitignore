@@ -18,6 +18,8 @@ data/simulated/*
 *.tfvars
 !example.tfvars
 profiles.yml
+# ...except the FAKE CI profile (no real host or token), which CI needs for dbt parse
+!ci/profiles.yml
 
 # Terraform
 .terraform/
