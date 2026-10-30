@@ -286,3 +286,23 @@ The tool versions are pinned in `requirements-ci.txt` (ruff 0.17.3, sqlfluff 4.4
 | sqlfluff | ST06 column order | Reordering columns would change the column order of the output tables |
 
 The SQL line limit is 140 (not 120) because the reconciliation report's one-sentence explanations are string literals that cannot be wrapped. All lint fixes were formatting only: the rendered SQL of all 23 models and tests was compared before and after, and the only differences were added table aliases and an explicit `asc`.
+
+## Infrastructure as Code (Terraform)
+
+Terraform describes infrastructure in text files (`.tf`) so it can be reviewed, versioned and recreated like code, instead of being clicked together in a UI.
+
+| Folder | Manages | Status |
+| --- | --- | --- |
+| [terraform/databricks](../terraform/databricks) | Unity Catalog schemas `bronze`, `silver`, `gold`, `staging`, `audit`, `restricted` in catalog `workspace`, and the managed volume `workspace.bronze.landing` | Applied to Databricks Free Edition |
+| [terraform/azure](../terraform/azure) | Resource group, ADLS Gen2 storage account (hierarchical namespace, TLS 1.2, HTTPS only, no public blob access) and `bronze` / `silver` / `gold` containers | Validate-only: checked in CI, never deployed |
+
+The Databricks job is not managed by Terraform yet; it is documented in [jobs/olist_lakehouse_pipeline.yml](../jobs/olist_lakehouse_pipeline.yml).
+
+### Key ideas
+
+- **State:** Terraform keeps a state file (`terraform.tfstate`) that maps each resource in the code to the real object it manages. It is never committed: it holds real ids and can hold secrets. `.gitignore` excludes `*.tfstate`, `*.tfstate.*`, `.terraform/`, `*.tfvars` and `crash.log`, but `.terraform.lock.hcl` is committed because it pins the exact provider versions (databricks 1.140.0, azurerm 4.81.0).
+- **Import:** the schemas and volume were created earlier by notebooks and dbt. An `import` block for each of the 7 objects tells Terraform to adopt the existing object into its state instead of trying to create it again (which would fail).
+- **Plan vs apply:** `terraform plan` only shows what would change and touches nothing; `terraform apply` makes the changes (and performs the imports). The config is kept minimal (name and catalog only) so that, after import, plan shows 0 to add, 0 to change, 0 to destroy.
+- **prevent_destroy:** every schema and the volume have `lifecycle { prevent_destroy = true }`, so a typo or deleted block can never make Terraform drop a schema and every table in it; Terraform stops with an error instead.
+- **Credentials:** the Databricks provider block is empty. It reads `DATABRICKS_HOST` and `DATABRICKS_TOKEN` from environment variables set in my own terminal, so no workspace URL or token is ever written to the repo, the state backend config or CI.
+- **Why the Azure folder is validate-only:** I have no Azure subscription yet. CI still runs `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate` on both folders, which proves the code is well formatted and valid without logging in to any cloud. Its README explains how each container would map to the matching Databricks schema on Azure Databricks.

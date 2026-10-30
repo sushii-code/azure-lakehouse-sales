@@ -22,10 +22,14 @@ profiles.yml
 !ci/profiles.yml
 
 # Terraform
+# downloaded providers (re-created by terraform init)
 .terraform/
+# state files hold real resource ids and can hold secrets: never commit them
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl
+crash.log
+# (*.tfvars is ignored above, under Secrets)
+# .terraform.lock.hcl is NOT ignored: it pins the exact provider versions and must be committed
 
 # dbt
 dbt/target/

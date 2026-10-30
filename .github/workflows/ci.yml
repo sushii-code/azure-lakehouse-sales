@@ -1,6 +1,7 @@
 # CI for azure-lakehouse-sales.
 # Checks code style and that the dbt project is valid on every push to main and every pull request.
-# It NEVER connects to Databricks: no Databricks token, host or GitHub secret is used anywhere.
+# It NEVER connects to Databricks or Azure: no token, host, cloud login or GitHub secret is used
+# anywhere (Terraform is only formatted and validated, never planned or applied).
 
 name: CI                                   # name shown on the Actions tab and in the README badge
 
@@ -46,8 +47,35 @@ jobs:
         # model, test, source and ref() but never opens a connection, so the fake values are enough
         run: dbt parse --profiles-dir ../ci
 
+  terraform:
+    name: Terraform fmt and validate (${{ matrix.folder }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:                              # run the same steps once per folder, in parallel
+        folder: [terraform/databricks, terraform/azure]
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}   # every `run` step below runs inside that folder
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3 # install the terraform command
+        with:
+          terraform_version: "1.16.6"      # same version as on my machine
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive   # fails if any .tf file is not formatted like `terraform fmt`
+
+      - name: Download providers (no backend, no login)
+        run: terraform init -backend=false     # no state and no credentials: nothing real is touched
+
+      - name: Validate the configuration
+        run: terraform validate                # checks syntax, references and provider arguments offline
+
   secret-scan:
-    name: Scan for leaked secrets          # separate job so it runs in parallel with the one above
+    name: Scan for leaked secrets          # separate job so it runs in parallel with the ones above
     runs-on: ubuntu-latest
     permissions:
       contents: read                       # read the code and its history
