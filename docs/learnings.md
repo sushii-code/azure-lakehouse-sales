@@ -101,3 +101,6 @@
 - Found: terraform init resolved databricks 1.140.0 (from "~> 1.50") and azurerm 4.81.0 (from "~> 4.0"); terraform fmt only realigned three comments.
 - Problems: terraform validate could not run in the assistant's sandboxed shell because Windows blocked the downloaded provider programs ("Access is denied"); it is checked in my own terminal and in CI on Linux instead.
 - Interview line: "My Unity Catalog schemas and landing volume are managed by Terraform: I adopted the existing objects with import blocks so the plan showed zero changes, protected every schema with prevent_destroy, and kept credentials out of the code by letting the provider read environment variables."
+
+## Local helper script (not committed)
+- I use a local PowerShell helper, `scripts/set_databricks_env.ps1`, to set DATABRICKS_HOST and DATABRICKS_TOKEN in my terminal, check the token and clear the clipboard. It contains my workspace URL, so it is listed in `.gitignore` and is not in this repo. The token itself is never saved to any file.
