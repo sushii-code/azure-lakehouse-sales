@@ -6,6 +6,8 @@ An end-to-end medallion lakehouse running on Databricks Free Edition (Unity Cata
 
 **Author:** Gnana Sushmitha Tammisetti | [GitHub](https://github.com/sushii-code) | [LinkedIn](https://www.linkedin.com/in/gnanasushmitha)
 
+📄 [Full project report (PDF): docs/Olist_Ecommerce_Lakehouse_Project_Report.pdf](docs/Olist_Ecommerce_Lakehouse_Project_Report.pdf)
+
 ![Olist Sales Overview dashboard](docs/images/dashboard.png)
 
 *Olist Sales Overview in Databricks AI/BI: 13.22M BRL revenue, 96.47K delivered orders, 93.35K customers, 137.04 BRL average order value.*
