@@ -1,0 +1,2 @@
+# False positive: a prose sentence in docs/learnings.md about Azure storage settings, not a real key.
+54ac3fbba2f7d075f2da460985602f12ea6d44db:docs/learnings.md:generic-api-key:98

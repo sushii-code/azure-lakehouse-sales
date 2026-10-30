@@ -100,6 +100,7 @@
 - Why: the provider reads DATABRICKS_HOST and DATABRICKS_TOKEN from environment variables, so no URL or token ever lands in a file or in git. The Azure folder is validate-only because I have no Azure subscription yet, but CI still proves the code is correct, so it is ready to deploy later.
 - Found: terraform init resolved databricks 1.140.0 (from "~> 1.50") and azurerm 4.81.0 (from "~> 4.0"); terraform fmt only realigned three comments.
 - Problems: terraform validate could not run in the assistant's sandboxed shell because Windows blocked the downloaded provider programs ("Access is denied"); it is checked in my own terminal and in CI on Linux instead.
+- Secret scan: gitleaks flagged a sentence in this file as a possible key; I checked it was only prose and allow-listed that exact fingerprint in `.gitleaksignore` instead of switching the rule off.
 - Interview line: "My Unity Catalog schemas and landing volume are managed by Terraform: I adopted the existing objects with import blocks so the plan showed zero changes, protected every schema with prevent_destroy, and kept credentials out of the code by letting the provider read environment variables."
 
 ## Local helper script (not committed)
