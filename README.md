@@ -13,25 +13,21 @@ An end-to-end medallion lakehouse running on Databricks Free Edition (Unity Cata
 ## Architecture
 
 ```mermaid
-flowchart TD
-    csv["Olist CSVs"] --> volume
+flowchart LR
+    csv["Olist CSVs"] --> volume["UC volume"] --> bronze["Bronze"] --> silver["Silver<br/>+ quarantine"] --> staging["dbt staging"] --> gold["Gold<br/>star schema"] --> dashboard["AI/BI dashboard"]
+    gold --> audit["audit.reconciliation_report"]
+    silver <-->|"customers / tokens"| restricted["Restricted schema<br/>+ token vault"]
 
-    subgraph uc["Databricks Unity Catalog"]
-        volume["Volume: bronze.landing"] --> bronze["Bronze<br/>raw Delta tables"]
-        bronze --> silver["Silver<br/>typed, deduplicated,<br/>quarantine tables"]
-        silver -->|"silver customers"| restricted["Restricted schema<br/>simulated PII + token vault"]
-        restricted -->|"tokens only"| staging
-        silver --> staging["dbt staging views"]
-        staging --> gold["Gold star schema<br/>fact_sales (incremental), fct_orders,<br/>dim_customer (SCD2), dim_product,<br/>dim_seller, dim_date"]
-        gold --> audit["audit.reconciliation_report"]
+    subgraph platform["Platform & automation"]
+        ci["GitHub Actions CI"] -.->|"checks"| repo["GitHub main"]
+        repo -.->|"dbt project"| job["Databricks Job"]
+        terraform["Terraform"]
     end
 
-    gold --> dashboard["AI/BI dashboard"]
-
-    job["Databricks Job<br/>6 tasks"] -.->|"orchestrates"| uc
-    terraform["Terraform"] -.->|"manages schemas + volume"| uc
-    repo["GitHub repo, branch main"] -.->|"dbt project"| job
-    ci["GitHub Actions CI"] -.->|"checks every push and PR"| repo
+    job -.->|"runs"| bronze
+    job -.->|"runs"| silver
+    job -.->|"runs"| staging
+    terraform -.->|"schemas + volume"| volume
 ```
 
 ## Tech stack
